@@ -3,7 +3,14 @@ import logging
 import sqlite3
 from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters  # ← ИМЕННО ТАК в новой версии!
+)
 
 # ==================== НАСТРОЙКИ ====================
 logging.basicConfig(
@@ -816,7 +823,7 @@ def main():
     # Для команды "Записаться" - начинаем с выбора даты
     app.add_handler(CallbackQueryHandler(view_schedule, pattern="^book_appointment$"))
     
-    # Обработчик текстовых сообщений
+    # Обработчик текстовых сообщений - ИСПРАВЛЕННАЯ СТРОКА!
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     logger.info("✅ Бот запущен и готов к работе!")
