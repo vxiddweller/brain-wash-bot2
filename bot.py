@@ -31,26 +31,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ==================== FLASK HEALTH SERVER ====================
-from flask import Flask
-from threading import Thread
+import http.server
+import socketserver
+import threading
 
-app = Flask('')
+class HealthHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/health' or self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            self.wfile.write(b'✅ Roblox Brain Wash Bot OK!')
+        else:
+            self.send_response(404)
+            self.end_headers()
+    
+    def log_message(self, format, *args):
+        pass
 
-@app.route('/')
-def home():
-    return "✅ Roblox Brain Wash Bot is running! 🎮"
-
-@app.route('/health')
-def health():
-    return {"status": "ok", "service": "roblox-brain-wash-bot"}, 200
-
-def run_flask():
+def run_health_server():
     try:
         port = int(os.environ.get('PORT', 8080))
-        app.run(host='0.0.0.0', port=port)
+        with socketserver.TCPServer(("0.0.0.0", port), HealthHandler) as httpd:
+            logger.info(f"✅ Health server running on port {port}")
+            httpd.serve_forever()
     except Exception as e:
-        logging.error(f"Flask error: {e}")
+        logger.error(f"❌ Health server error: {e}")
+
+health_thread = threading.Thread(target=run_health_server, daemon=True)
+health_thread.start()
 
 # Запускаем в отдельном потоке
 flask_thread = Thread(target=run_flask, daemon=True)
