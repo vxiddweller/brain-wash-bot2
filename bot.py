@@ -30,12 +30,12 @@ logging.getLogger().addHandler(file_handler)
 
 logger = logging.getLogger(__name__)
 
-# ==================== 2. FLASK HEALTH ====================
-from flask import Flask, jsonify
+# ==================== FLASK HEALTH SERVER ====================
+from flask import Flask
 from threading import Thread
 import time
 
-app = Flask('')
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -43,24 +43,37 @@ def home():
 
 @app.route('/health')
 def health():
-    return jsonify({
-        "status": "ok", 
-        "service": "roblox-brain-wash-bot",
-        "timestamp": datetime.now().isoformat()
-    })
+    return "OK", 200
 
 def run_flask():
     try:
-        port = int(os.environ.get('PORT', 8080))
-        logger.info(f"🚀 Health server starting on port {port}")
-        app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
+        # Railway предоставляет порт через переменную окружения
+        port = int(os.environ.get('PORT', 10000))
+        logger.info(f"🚀 Starting Flask on port {port} for Railway...")
+        
+        # Важные настройки для Railway
+        app.run(
+            host='0.0.0.0',
+            port=port,
+            debug=False,
+            threaded=True,
+            use_reloader=False
+        )
     except Exception as e:
-        logger.error(f"Flask server error: {e}")
+        logger.error(f"❌ Flask failed: {e}")
+        # Пробуем другой порт
+        try:
+            app.run(host='0.0.0.0', port=8080, debug=False, threaded=True)
+        except Exception as e2:
+            logger.error(f"❌ Backup port also failed: {e2}")
 
-# Даем время на инициализацию
-time.sleep(2)
+# Даем время на инициализацию Telegram бота
+time.sleep(3)
 flask_thread = Thread(target=run_flask, daemon=True)
 flask_thread.start()
+logger.info("✅ Flask health server started in background")
+
+
 # Получаем токен бота
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
