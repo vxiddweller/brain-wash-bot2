@@ -31,6 +31,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ==================== FLASK HEALTH SERVER ====================
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "✅ Roblox Brain Wash Bot is running! 🎮"
+
+@app.route('/health')
+def health():
+    return {"status": "ok", "service": "roblox-brain-wash-bot"}, 200
+
+def run_flask():
+    try:
+        port = int(os.environ.get('PORT', 8080))
+        app.run(host='0.0.0.0', port=port)
+    except Exception as e:
+        logging.error(f"Flask error: {e}")
+
+# Запускаем в отдельном потоке
+flask_thread = Thread(target=run_flask, daemon=True)
+flask_thread.start()
+
 # Получаем токен бота
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
