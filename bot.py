@@ -7,7 +7,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-TOKEN = os.environ.get("8582048253:AAEoLzL8ISHw37W7LmllzLtLaRCe8JbuBfk")
+TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
     logger.error("Нет токена! Установите BOT_TOKEN")
     exit(1)
