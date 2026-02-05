@@ -16,25 +16,24 @@ from telegram.ext import (
 )
 
 # ==================== НАСТРОЙКИ ====================
-# Настройка логирования в файл
-file_handler = logging.FileHandler('bot.log', encoding='utf-8')
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-
-logger = logging.getLogger()
-logger.addHandler(file_handler)
-
+# ==================== 1. LOGGING ====================
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+
+file_handler = logging.FileHandler('bot.log', encoding='utf-8')
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+logging.getLogger().addHandler(file_handler)
+
 logger = logging.getLogger(__name__)
 
-
-# ==================== 2. FLASK HEALTH SERVER ====================
+# ==================== 2. FLASK HEALTH ====================
 from flask import Flask, jsonify
 from threading import Thread
+import time
 
 app = Flask('')
 
@@ -53,18 +52,15 @@ def health():
 def run_flask():
     try:
         port = int(os.environ.get('PORT', 8080))
-        logger.info(f"🚀 Starting Flask health server on port {port}")
-        # Важно: debug=False для продакшена
+        logger.info(f"🚀 Health server starting on port {port}")
         app.run(host='0.0.0.0', port=port, debug=False, threaded=True, use_reloader=False)
     except Exception as e:
-        logger.error(f"❌ Flask error: {e}")
+        logger.error(f"Flask server error: {e}")
 
-# Запускаем Flask в отдельном потоке с небольшой задержкой
-import time
-time.sleep(1)  # Даем время на инициализацию
+# Даем время на инициализацию
+time.sleep(2)
 flask_thread = Thread(target=run_flask, daemon=True)
 flask_thread.start()
-
 # Получаем токен бота
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
