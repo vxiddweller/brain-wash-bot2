@@ -861,7 +861,7 @@ async def admin_all_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 async def admin_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обновить расписание"""
+    """Обновить расписание (быстрая версия)"""
     query = update.callback_query
     await query.answer()
     
@@ -870,24 +870,82 @@ async def admin_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🚫 Нет доступа!")
         return
     
-    # Пересоздаем расписание
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    
-    # Удаляем старые записи
-    cursor.execute("DELETE FROM appointments WHERE date >= date('now')")
-    
-    # Генерируем новые
-    generate_schedule(cursor)
-    
-    conn.commit()
-    conn.close()
-    
+    # Быстрое сообщение
     await query.edit_message_text(
-        "✅ *Расписание обновлено!*\n\n"
-        "Созданы новые слоты на неделю вперед.",
-        reply_markup=get_admin_menu()
+        "⏳ *Обновляю расписание...*",
+        parse_mode='Markdown'
     )
+    
+    try:
+        # БЫСТРЫЙ метод
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        
+        # Удаляем только будущие записи
+        cursor.execute("DELETE FROM appointments WHERE date >= date('now')")
+        
+        # Быстро генерируем новые
+        today = datetime.now()
+        services = [
+            ("🧹 Базовая чистка чата", "basic", 500),
+            ("🌀 Очистка от нообов", "deep", 1200),
+            ("⚡ Экспресс-фикс багов", "express", 300),
+            ("👑 VIP разблокировка", "vip", 2500),
+            ("🎮 Прокачка скиллов", "pro", 1800),
+            ("🔧 Ремонт аватара", "avatar", 800)
+        ]
+        
+        WORKING_HOURS = [10, 12, 14, 16, 18, 20]
+        appointments = []
+        
+        for day in range(7):
+            appointment_date = today + timedelta(days=day + 1)
+            date_str = appointment_date.strftime("%Y-%m-%d")
+            
+            for hour in WORKING_HOURS:
+                time_str = f"{hour:02d}:00"
+                service = random.choice(services)
+                
+                appointments.append((
+                    date_str,
+                    time_str,
+                    service[1],
+                    None,
+                    None,
+                    None,
+                    'free'
+                ))
+        
+        # Массовая вставка - БЫСТРО!
+        cursor.executemany('''
+            INSERT INTO appointments (date, time, service_type, user_id, user_name, user_phone, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', appointments)
+        
+        conn.commit()
+        conn.close()
+        
+        # Сообщение об успехе
+        await query.edit_message_text(
+            "✅ *Готово! Расписание обновлено!*\n\n"
+            f"📅 Создано: {len(appointments)} слотов\n"
+            f"🎮 Услуг: {len(services)} видов\n"
+            f"⏰ Часов в день: {len(WORKING_HOURS)}\n\n"
+            "Теперь пользователи могут записываться на новую неделю! 🎮",
+            reply_markup=get_admin_menu(),
+            parse_mode='Markdown'
+        )
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении расписания: {e}")
+        
+        await query.edit_message_text(
+            f"❌ *Ошибка при обновлении!*\n\n"
+            f"*Причина:* {str(e)[:100]}\n\n"
+            "Попробуйте позже или проверьте базу данных.",
+            reply_markup=get_admin_menu(),
+            parse_mode='Markdown'
+        )
 
 async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """В главное меню"""
