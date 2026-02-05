@@ -9,7 +9,7 @@ from telegram.ext import (
     CallbackQueryHandler,
     ContextTypes,
     MessageHandler,
-    filters  # ← ИМЕННО ТАК в новой версии!
+    filters
 )
 
 # ==================== НАСТРОЙКИ ====================
@@ -22,25 +22,25 @@ logger = logging.getLogger(__name__)
 # Получаем токен бота
 TOKEN = os.environ.get("BOT_TOKEN")
 if not TOKEN:
-    logger.error("⚠️ ОШИБКА: Не задан токен бота!")
-    logger.error("ℹ️ Установите переменную окружения BOT_TOKEN")
+    logger.error("⚠️ Ошибка: Нет токена!")
     exit(1)
 
+# ID админа (ЗАМЕНИ НА СВОЙ!)
+ADMIN_IDS = [1032908366]  # ← ВСТАВЬ СВОЙ TELEGRAM ID!
+
 # Настройки записи
-WORKING_HOURS = [10, 12, 14, 16, 18]  # Часы приема: 10:00, 12:00 и т.д.
-DAYS_AHEAD = 7                         # Запись на 7 дней вперед
-MINUTES_PER_SESSION = 60               # Длительность сеанса
+WORKING_HOURS = [10, 12, 14, 16, 18, 20]  # Часы приема
+DAYS_AHEAD = 7                             # Запись на 7 дней
 
 # ==================== БАЗА ДАННЫХ ====================
-DB_NAME = "brainwash_appointments.db"
+DB_NAME = "roblox_wash.db"
 
 def init_database():
-    """Инициализация базы данных SQLite"""
+    """Инициализация базы данных"""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
         
-        # Таблица для записей
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS appointments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,40 +56,40 @@ def init_database():
             )
         ''')
         
-        # Проверяем, есть ли уже записи на ближайшую неделю
         cursor.execute("SELECT COUNT(*) FROM appointments WHERE date >= date('now')")
         count = cursor.fetchone()[0]
         
         if count == 0:
-            logger.info("Генерирую расписание на неделю вперед...")
+            logger.info("Создаю расписание в Roblox...")
             generate_schedule(cursor)
         
         conn.commit()
         conn.close()
-        logger.info("✅ База данных готова!")
+        logger.info("✅ База Roblox готова!")
         
     except Exception as e:
-        logger.error(f"❌ Ошибка инициализации БД: {e}")
+        logger.error(f"❌ Ошибка: {e}")
 
 def generate_schedule(cursor):
-    """Генерация расписания на неделю вперед"""
+    """Генерация расписания"""
     today = datetime.now()
     appointments = []
     
-    # Типы услуг с ценами
+    # Услуги в Roblox стиле
     services = [
-        ("🧠 Стандартная", "standart", 1500),
-        ("🌀 Глубокая", "deep", 2500),
-        ("⚡ Экспресс", "express", 1000),
-        ("👑 VIP", "vip", 5000)
+        ("🧹 Базовая чистка чата", "basic", 500),      # 500 робуксов
+        ("🌀 Очистка от нообов", "deep", 1200),        # 1200 робуксов
+        ("⚡ Экспресс-фикс багов", "express", 300),    # 300 робуксов
+        ("👑 VIP разблокировка", "vip", 2500),         # 2500 робуксов
+        ("🎮 Прокачка скиллов", "pro", 1800),          # 1800 робуксов
+        ("🔧 Ремонт аватара", "avatar", 800)           # 800 робуксов
     ]
     
     import random
     
     for day in range(DAYS_AHEAD):
-        appointment_date = today + timedelta(days=day + 1)  # Начиная с завтра
+        appointment_date = today + timedelta(days=day + 1)
         date_str = appointment_date.strftime("%Y-%m-%d")
-        day_name_rus = get_russian_day_name(appointment_date.weekday())
         
         for hour in WORKING_HOURS:
             time_str = f"{hour:02d}:00"
@@ -98,27 +98,26 @@ def generate_schedule(cursor):
             appointments.append((
                 date_str,
                 time_str,
-                service[1],  # service code
-                None,        # user_id
-                None,        # user_name
-                None,        # user_phone
-                'free'       # status
+                service[1],
+                None,
+                None,
+                None,
+                'free'
             ))
     
     cursor.executemany('''
         INSERT OR IGNORE INTO appointments 
-        (date, time, service_type, user_id, user_name, user_phone, status) 
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', appointments)
 
 def get_russian_day_name(weekday):
-    """Получить название дня недели на русском"""
+    """Дни недели"""
     days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
     return days[weekday]
 
-# ==================== ФУНКЦИИ БАЗЫ ДАННЫХ ====================
+# ==================== ФУНКЦИИ БАЗЫ ====================
 def get_available_dates():
-    """Получить даты, на которые есть свободные места"""
+    """Свободные даты"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -135,7 +134,7 @@ def get_available_dates():
     return dates
 
 def get_available_times(date):
-    """Получить свободное время на конкретную дату"""
+    """Свободное время на дату"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -150,18 +149,20 @@ def get_available_times(date):
     conn.close()
     return times
 
-def get_service_name(service_code):
-    """Получить название услуги по коду"""
+def get_service_info(service_code):
+    """Инфо об услуге"""
     services = {
-        'standart': ('🧠 Стандартная промывка', 1500),
-        'deep': ('🌀 Глубокая очистка', 2500),
-        'express': ('⚡ Экспресс-сессия', 1000),
-        'vip': ('👑 VIP комплекс', 5000)
+        'basic': ('🧹 Базовая чистка чата', 500, "Удаление спама, токсичных друзей, мусорных сообщений"),
+        'deep': ('🌀 Очистка от нообов', 1200, "Полное удаление нообского мышления, апгрейд скиллов"),
+        'express': ('⚡ Экспресс-фикс багов', 300, "Срочное исправление багов в логике, быстрая помощь"),
+        'vip': ('👑 VIP разблокировка', 2500, "Разблокировка премиум-возможностей, доступ к секретным зонам"),
+        'pro': ('🎮 Прокачка скиллов', 1800, "Повышение уровня, изучение новых механик, гайды от про"),
+        'avatar': ('🔧 Ремонт аватара', 800, "Починка аватара, настройка анимаций, новые аксессуары")
     }
-    return services.get(service_code, ('Неизвестная услуга', 0))
+    return services.get(service_code, ('Неизвестная услуга', 0, ""))
 
 def book_appointment(date, time, user_id, user_name, phone=None):
-    """Забронировать запись"""
+    """Бронирование"""
     try:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -178,11 +179,11 @@ def book_appointment(date, time, user_id, user_name, phone=None):
         
         return success
     except Exception as e:
-        logger.error(f"Ошибка бронирования: {e}")
+        logger.error(f"Ошибка: {e}")
         return False
 
 def get_user_appointments(user_id):
-    """Получить записи пользователя"""
+    """Записи пользователя"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -197,33 +198,80 @@ def get_user_appointments(user_id):
     conn.close()
     return appointments
 
-def cancel_appointment(date, time, user_id):
-    """Отменить запись"""
+def get_all_bookings():
+    """ВСЕ записи (для админа)"""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
     cursor.execute('''
-        UPDATE appointments 
-        SET user_id = NULL, user_name = NULL, user_phone = NULL, status = 'free'
-        WHERE date = ? AND time = ? AND user_id = ?
-    ''', (date, time, user_id))
+        SELECT date, time, service_type, user_name, user_phone, created_at 
+        FROM appointments 
+        WHERE status = 'booked'
+        ORDER BY date, time
+    ''')
     
-    success = cursor.rowcount > 0
-    conn.commit()
+    bookings = cursor.fetchall()
+    conn.close()
+    return bookings
+
+def get_stats():
+    """Статистика (для админа)"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    # Общая статистика
+    cursor.execute("SELECT COUNT(*) FROM appointments")
+    total = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM appointments WHERE status = 'free'")
+    free = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM appointments WHERE status = 'booked'")
+    booked = cursor.fetchone()[0]
+    
+    # Статистика по услугам
+    cursor.execute('''
+        SELECT service_type, COUNT(*) 
+        FROM appointments 
+        WHERE status = 'booked'
+        GROUP BY service_type
+    ''')
+    service_stats = cursor.fetchall()
+    
     conn.close()
     
-    return success
+    return {
+        'total': total,
+        'free': free,
+        'booked': booked,
+        'services': service_stats
+    }
 
 # ==================== КЛАВИАТУРЫ ====================
-def get_main_menu():
+def get_main_menu(user_id):
     """Главное меню"""
     keyboard = [
-        [InlineKeyboardButton("📅 Посмотреть расписание", callback_data="view_schedule")],
-        [InlineKeyboardButton("🔄 Записаться на прием", callback_data="book_appointment")],
-        [InlineKeyboardButton("📋 Мои записи", callback_data="my_appointments")],
-        [InlineKeyboardButton("💰 Услуги и цены", callback_data="services_info")],
-        [InlineKeyboardButton("🏥 О клинике", callback_data="about_clinic")],
-        [InlineKeyboardButton("☎️ Контакты", callback_data="contacts")],
+        [InlineKeyboardButton("🎮 Свободные слоты", callback_data="view_slots")],
+        [InlineKeyboardButton("📅 Записаться на чистку", callback_data="book")],
+        [InlineKeyboardButton("📋 Мои записи", callback_data="my_bookings")],
+        [InlineKeyboardButton("💎 Услуги и цены", callback_data="services")],
+        [InlineKeyboardButton("🏢 О сервисе", callback_data="about")],
+        [InlineKeyboardButton("📞 Контакты", callback_data="contacts")],
+    ]
+    
+    # Если админ - добавляем кнопку
+    if user_id in ADMIN_IDS:
+        keyboard.append([InlineKeyboardButton("👑 ПАНЕЛЬ АДМИНА", callback_data="admin_panel")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
+def get_admin_menu():
+    """Меню админа"""
+    keyboard = [
+        [InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")],
+        [InlineKeyboardButton("📋 Все записи", callback_data="admin_all")],
+        [InlineKeyboardButton("🔄 Обновить расписание", callback_data="admin_refresh")],
+        [InlineKeyboardButton("🏠 В главное меню", callback_data="back_main")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -239,8 +287,8 @@ def get_dates_keyboard(dates):
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"date_{date_str}")])
     
     keyboard.append([
-        InlineKeyboardButton("◀️ Назад", callback_data="back_to_main"),
-        InlineKeyboardButton("🔄 Обновить", callback_data="view_schedule")
+        InlineKeyboardButton("◀️ Назад", callback_data="back_main"),
+        InlineKeyboardButton("🔄 Обновить", callback_data="view_slots")
     ])
     
     return InlineKeyboardMarkup(keyboard)
@@ -250,85 +298,68 @@ def get_times_keyboard(times, selected_date):
     keyboard = []
     
     for time_str, service_code in times:
-        service_name, price = get_service_name(service_code)
-        button_text = f"{time_str} - {service_name.split()[1]} ({price}₽)"
+        service_name, price, _ = get_service_info(service_code)
+        short_name = service_name.split()[1]
+        button_text = f"{time_str} - {short_name} ({price} 🪙)"
         
         keyboard.append([
             InlineKeyboardButton(button_text, callback_data=f"time_{selected_date}_{time_str}_{service_code}")
         ])
     
     keyboard.append([
-        InlineKeyboardButton("◀️ Выбрать другую дату", callback_data="book_appointment"),
-        InlineKeyboardButton("🏠 В меню", callback_data="back_to_main")
+        InlineKeyboardButton("◀️ Другие даты", callback_data="book"),
+        InlineKeyboardButton("🏠 В меню", callback_data="back_main")
     ])
     
     return InlineKeyboardMarkup(keyboard)
 
-def get_confirmation_keyboard(date, time, service_code):
-    """Клавиатура подтверждения записи"""
+def get_confirm_keyboard(date, time, service_code):
+    """Подтверждение"""
     keyboard = [
         [
-            InlineKeyboardButton("✅ Да, записать", callback_data=f"confirm_{date}_{time}_{service_code}"),
-            InlineKeyboardButton("❌ Отмена", callback_data="book_appointment")
-        ],
-        [InlineKeyboardButton("📞 Предварительно позвонить", callback_data="need_call")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-def get_yes_no_keyboard():
-    """Простая клавиатура Да/Нет"""
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ Да", callback_data="yes_phone"),
-            InlineKeyboardButton("❌ Нет", callback_data="no_phone")
+            InlineKeyboardButton("✅ Да, записать!", callback_data=f"confirm_{date}_{time}_{service_code}"),
+            InlineKeyboardButton("❌ Отмена", callback_data="book")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
 
-def get_services_keyboard():
-    """Клавиатура с услугами"""
-    keyboard = [
-        [InlineKeyboardButton("🧠 Стандартная (60 мин) - 1500₽", callback_data="service_standart")],
-        [InlineKeyboardButton("🌀 Глубокая (90 мин) - 2500₽", callback_data="service_deep")],
-        [InlineKeyboardButton("⚡ Экспресс (30 мин) - 1000₽", callback_data="service_express")],
-        [InlineKeyboardButton("👑 VIP (120 мин) - 5000₽", callback_data="service_vip")],
-        [InlineKeyboardButton("◀️ Назад", callback_data="back_to_main")]
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-# ==================== ОБРАБОТЧИКИ КОМАНД ====================
+# ==================== ОБРАБОТЧИКИ ====================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик команды /start"""
+    """Команда /start"""
     user = update.effective_user
     
     welcome_text = f"""
-👋 *Добро пожаловать, {user.first_name}!*
+🎮 *Добро пожаловать в Roblox Brain Wash, {user.first_name}!* 
 
-*Brain Wash Clinic* — современная клиника промывки мозгов! 🧠✨
+*Твой мозг заспамлен?* 
+*Чат полон токсиков?* 
+*Мышление как у нооба?*
 
-*Возможности бота:*
-• 📅 *Просмотр расписания* — смотрите свободные окна
-• 🔄 *Онлайн-запись* — бронируйте удобное время
-• 📋 *Мои записи* — управляйте бронированиями
-• 💰 *Услуги* — выбирайте подходящую программу
-• 🏥 *Информация* — узнайте о клинике больше
+✨ *Мы поможем!* ✨
 
-*Выберите действие в меню ниже:* ⤵️
+*Наш сервис предлагает:*
+• 🧹 Чистку чата от спама
+• 🌀 Удаление нообского мышления  
+• ⚡ Фикс багов в логике
+• 👑 VIP разблокировки
+• 🎮 Прокачку скиллов
+
+*Выбери действие ниже и давай кайфанем!* 😎
     """
     
-    # Инициализируем БД при первом запуске
+    # Инициализация БД
     if 'db_initialized' not in context.bot_data:
         init_database()
         context.bot_data['db_initialized'] = True
     
     await update.message.reply_text(
         welcome_text,
-        reply_markup=get_main_menu(),
+        reply_markup=get_main_menu(user.id),
         parse_mode='Markdown'
     )
 
-async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать расписание"""
+async def view_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Просмотр слотов"""
     query = update.callback_query
     await query.answer()
     
@@ -336,32 +367,31 @@ async def view_schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not available_dates:
         await query.edit_message_text(
-            "📅 *Расписание на неделю*\n\n"
-            "😔 На данный момент *нет свободных окон*.\n\n"
-            "Пожалуйста, попробуйте позже или свяжитесь с администратором.\n\n"
-            "📞 Контакт для срочной записи: +7 (XXX) XXX-XX-XX",
+            "😔 *На этой неделе все слоты заняты!*\n\n"
+            "Но не расстраивайся! Можешь:\n"
+            "1️⃣ Подписаться на уведомления о новых слотах\n"
+            "2️⃣ Написать нашему администратору @RobloxProCleaner\n"
+            "3️⃣ Попробовать зайти позже\n\n"
+            "*Скоро будут новые слоты!* ⚡",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Обновить", callback_data="view_schedule")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_main")]
+                [InlineKeyboardButton("🔄 Проверить снова", callback_data="view_slots")],
+                [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
             ]),
             parse_mode='Markdown'
         )
         return
     
-    # Форматируем даты для отображения
+    # Форматируем даты
     dates_text = ""
     for date_str in available_dates:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         day_name = get_russian_day_name(date_obj.weekday())
         dates_text += f"• *{date_obj.strftime('%d.%m.%Y')}* ({day_name})\n"
     
-    total_free = len(get_available_times(available_dates[0])) if available_dates else 0
-    
     await query.edit_message_text(
-        f"📅 *Свободные дни для записи:*\n\n"
+        f"🎯 *Доступные даты для записи:*\n\n"
         f"{dates_text}\n"
-        f"📊 *Всего свободных окон:* {total_free}\n\n"
-        f"*Выберите дату для просмотра времени:* ⤵️",
+        f"*Выбери дату и посмотрим свободное время:* ⤵️",
         reply_markup=get_dates_keyboard(available_dates),
         parse_mode='Markdown'
     )
@@ -380,81 +410,79 @@ async def select_date(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not available_times:
         await query.edit_message_text(
             f"📅 *{date_obj.strftime('%d.%m.%Y')} ({day_name})*\n\n"
-            "😔 На эту дату *нет свободных окон*.\n\n"
-            "Пожалуйста, выберите другую дату:",
+            "😅 *Все слоты на эту дату уже заняты!*\n\n"
+            "Геймеры быстро разбирают лучшие время!\n"
+            "Попробуй другую дату:",
             reply_markup=get_dates_keyboard(get_available_dates()),
             parse_mode='Markdown'
         )
         return
     
-    # Сохраняем выбранную дату в контексте
-    context.user_data['selected_date'] = date_str
-    
-    # Считаем статистику по услугам
+    # Статистика по услугам
     service_stats = {}
     for _, service_code in available_times:
-        service_name, price = get_service_name(service_code)
+        service_name, price, _ = get_service_info(service_code)
         short_name = service_name.split()[1]
         service_stats[short_name] = service_stats.get(short_name, 0) + 1
     
-    stats_text = "\n".join([f"• {name}: {count}" for name, count in service_stats.items()])
+    stats_text = "\n".join([f"• {name}: {count} слотов" for name, count in service_stats.items()])
     
     await query.edit_message_text(
-        f"⏰ *Доступное время на {date_obj.strftime('%d.%m.%Y')} ({day_name}):*\n\n"
+        f"⏰ *Свободные слоты на {date_obj.strftime('%d.%m.%Y')} ({day_name}):*\n\n"
         f"📊 *Доступные услуги:*\n{stats_text}\n\n"
-        f"*Выберите удобное время:* ⤵️",
+        f"*Выбери удобное время:* ⤵️",
         reply_markup=get_times_keyboard(available_times, date_str),
         parse_mode='Markdown'
     )
 
 async def select_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выбор времени и услуги"""
+    """Выбор времени"""
     query = update.callback_query
     await query.answer()
     
-    # Формат: time_2024-01-15_14:00_standart
     data = query.data.replace("time_", "")
     date_str, time_str, service_code = data.split("_", 2)
     
-    # Сохраняем в контексте
     context.user_data['selected_time'] = time_str
     context.user_data['selected_service'] = service_code
     
     date_obj = datetime.strptime(date_str, "%Y-%m-%d")
     day_name = get_russian_day_name(date_obj.weekday())
-    service_name, price = get_service_name(service_code)
+    service_name, price, description = get_service_info(service_code)
     
-    # Описание услуг
-    service_descriptions = {
-        'standart': "Базовая промывка от негативных мыслей",
-        'deep': "Полная перезагрузка сознания",
-        'express': "Быстрая очистка для срочных случаев",
-        'vip': "Индивидуальная программа с психологом"
+    # Угарные названия услуг
+    service_titles = {
+        'basic': "🧹 *Базовая чистка чата*",
+        'deep': "🌀 *Глубокая очистка от нообов*", 
+        'express': "⚡ *Экспресс-фикс багов*",
+        'vip': "👑 *VIP разблокировка*",
+        'pro': "🎮 *Прокачка скиллов*",
+        'avatar': "🔧 *Ремонт аватара*"
     }
     
     confirmation_text = f"""
-✅ *Подтверждение записи*
+{service_titles.get(service_code, '🎯 *Запись на процедуру*')}
 
 *📅 Дата:* {date_obj.strftime('%d.%m.%Y')} ({day_name})
 *⏰ Время:* {time_str}
-*🧠 Услуга:* {service_name}
-*💰 Стоимость:* {price}₽
+*💰 Стоимость:* {price} 🪙 (робуксов)
 
-*📝 Описание:*
-{service_descriptions.get(service_code, 'Профессиональная промывка мозгов')}
+*📝 Что входит:*
+{description}
 
-*📍 Адрес клиники:*
-ул. Мыслительная, д. 42, кабинет 315
-(метро «Прозрение», 5 минут пешком)
+*📍 Локация проведения:*
+Сервер **«Brain Clean HQ»**
+Карта: **«Cleaning Facility»**
+Портал: **#clean-zone-315**
 
-*⏳ Длительность сеанса:* {MINUTES_PER_SESSION} минут
+*⏳ Длительность сеанса:* 45-60 минут
 
-*Подтверждаете запись?*
+*Готов к чистке?* 🤖✨
     """
     
     await query.edit_message_text(
         confirmation_text,
-        reply_markup=get_confirmation_keyboard(date_str, time_str, service_code),
+        reply_markup=get_confirm_keyboard(date_str, time_str, service_code),
         parse_mode='Markdown'
     )
 
@@ -463,111 +491,73 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
-    if query.data.startswith("need_call"):
+    data = query.data.replace("confirm_", "")
+    date_str, time_str, service_code = data.split("_", 2)
+    
+    user = query.from_user
+    user_name = user.full_name or user.first_name
+    
+    success = book_appointment(date_str, time_str, user.id, user_name)
+    
+    if success:
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        day_name = get_russian_day_name(date_obj.weekday())
+        service_name, price, _ = get_service_info(service_code)
+        
+        success_text = f"""
+🎉 *ТЫ ЗАПИСАН! LET'S GOOO!* 🚀
+
+*🎮 Детали записи:*
+• Услуга: {service_name}
+• Дата: {date_obj.strftime('%d.%m.%Y')} ({day_name})
+• Время: {time_str}
+• Стоимость: {price} 🪙
+• Твой ник: {user_name}
+• ID записи: `{date_str}_{time_str}`
+
+*📍 Как попасть на сервер:*
+1. Зайди в Roblox
+2. Найди сервер **«Brain Clean HQ»**
+3. Используй код доступа: **#clean-{date_str.replace('-', '')}**
+4. Подойди к NPC с именем **«Доктор Нейрочист»**
+
+*📱 Наши контакты:*
+• Админ: @RobloxProCleaner
+• Техподдержка: @RobloxSupportBot
+• Discord: discord.gg/robloxclean
+
+*⚠️ Важно:*
+• Приходи за 5-10 минут до начала
+• Имей свободные 60 минут
+• Бери с собой хорошее настроение!
+
+*Удачи в прокачке мозга!* 🧠⚡
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("📋 Мои записи", callback_data="my_bookings")],
+            [InlineKeyboardButton("🎮 Еще записаться", callback_data="book")],
+            [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
+        ]
+        
         await query.edit_message_text(
-            "📞 *Нужен ли вам предварительный звонок?*\n\n"
-            "Наш специалист свяжется с вами за 1 час до приема "
-            "для уточнения деталей.",
-            reply_markup=get_yes_no_keyboard(),
+            success_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
-        return
-    
-    if query.data.startswith("yes_phone"):
-        context.user_data['need_call'] = True
-        await ask_for_phone(update, context)
-        return
-    
-    if query.data.startswith("no_phone"):
-        context.user_data['need_call'] = False
-        await ask_for_phone(update, context)
-        return
-    
-    # Если это прямое подтверждение
-    if query.data.startswith("confirm_"):
-        data = query.data.replace("confirm_", "")
-        date_str, time_str, service_code = data.split("_", 2)
-        
-        user = query.from_user
-        user_name = user.full_name or user.first_name
-        
-        # Пытаемся забронировать
-        success = book_appointment(date_str, time_str, user.id, user_name)
-        
-        if success:
-            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-            day_name = get_russian_day_name(date_obj.weekday())
-            service_name, price = get_service_name(service_code)
-            
-            success_text = f"""
-🎉 *Запись успешно оформлена!*
+    else:
+        await query.edit_message_text(
+            "😱 *ОШИБКА! Этот слот уже занят!*\n\n"
+            "Кто-то опередил тебя! 😅\n"
+            "Выбери другое время пока оно свободно!",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("📅 Выбрать дату", callback_data="book")],
+                [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
+            ]),
+            parse_mode='Markdown'
+        )
 
-*📋 Детали записи:*
-• 🧠 Услуга: {service_name}
-• 📅 Дата: {date_obj.strftime('%d.%m.%Y')} ({day_name})
-• ⏰ Время: {time_str}
-• 💰 Стоимость: {price}₽
-• 👤 Имя: {user_name}
-• 🆔 Номер записи: {date_str}_{time_str}
-
-*📍 Адрес клиники:*
-ул. Мыслительная, д. 42, 3 этаж, кабинет 315
-Кодовый замок: #315#
-
-*📞 Контакты:*
-• Телефон: +7 (XXX) XXX-XX-XX
-• Telegram: @brainwash_support
-• Email: brainwash@clinic.ru
-
-*📝 Важно:*
-1. Приходите за 10 минут до начала
-2. Возьмите с собой паспорт
-3. Отмена возможна за 24 часа
-
-*Спасибо за выбор нашей клиники!* 🧠✨
-            """
-            
-            keyboard = [
-                [InlineKeyboardButton("📋 Мои записи", callback_data="my_appointments")],
-                [InlineKeyboardButton("📅 Новая запись", callback_data="book_appointment")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_main")]
-            ]
-            
-            await query.edit_message_text(
-                success_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
-            )
-        else:
-            await query.edit_message_text(
-                "❌ *Это время уже занято!*\n\n"
-                "Пожалуйста, выберите другое время или дату.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("📅 Выбрать дату", callback_data="book_appointment")],
-                    [InlineKeyboardButton("🏠 В меню", callback_data="back_to_main")]
-                ]),
-                parse_mode='Markdown'
-            )
-
-async def ask_for_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Запрос номера телефона"""
-    query = update.callback_query
-    await query.answer()
-    
-    await query.edit_message_text(
-        "📱 *Введите ваш номер телефона для связи:*\n\n"
-        "Формат: +7 XXX XXX XX XX или 8 XXX XXX XX XX\n\n"
-        "Или нажмите /skip если не хотите указывать",
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("◀️ Назад", callback_data="book_appointment")]
-        ]),
-        parse_mode='Markdown'
-    )
-    
-    # Устанавливаем состояние ожидания телефона
-    context.user_data['waiting_for_phone'] = True
-
-async def my_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def my_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Мои записи"""
     query = update.callback_query
     await query.answer()
@@ -577,228 +567,345 @@ async def my_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not appointments:
         await query.edit_message_text(
-            "📭 *У вас нет активных записей*\n\n"
-            "Хотите записаться на промывку мозгов? Это того стоит! 🧠✨",
+            "📭 *У тебя пока нет записей!*\n\n"
+            "Хочешь прокачать свой мозг в Roblox? 🎮\n"
+            "Запишись на чистку и стань про-геймером! ⚡",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Записаться", callback_data="book_appointment")],
-                [InlineKeyboardButton("💰 Услуги", callback_data="services_info")],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_main")]
+                [InlineKeyboardButton("🎮 Записаться", callback_data="book")],
+                [InlineKeyboardButton("💎 Услуги", callback_data="services")],
+                [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
             ]),
             parse_mode='Markdown'
         )
         return
     
-    appointments_text = "📋 *Ваши активные записи:*\n\n"
+    bookings_text = "📋 *Твои активные записи:*\n\n"
     
     for i, (date_str, time_str, service_code, created_at) in enumerate(appointments, 1):
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
         day_name = get_russian_day_name(date_obj.weekday())
-        service_name, price = get_service_name(service_code)
+        service_name, price, _ = get_service_info(service_code)
         
-        appointments_text += f"*{i}. {service_name}*\n"
-        appointments_text += f"   📅 {date_obj.strftime('%d.%m.%Y')} ({day_name[:3]})\n"
-        appointments_text += f"   ⏰ {time_str} | 💰 {price}₽\n"
-        appointments_text += f"   🆔 {date_str}_{time_str}\n\n"
+        bookings_text += f"*{i}. {service_name}*\n"
+        bookings_text += f"   📅 {date_obj.strftime('%d.%m.%Y')} ({day_name[:3]})\n"
+        bookings_text += f"   ⏰ {time_str} | 💰 {price} 🪙\n"
+        bookings_text += f"   🆔 `{date_str}_{time_str}`\n\n"
     
-    appointments_text += "*Для отмены записи свяжитесь с администратором:* @brainwash_admin"
+    bookings_text += "*Для отмены напиши:* @RobloxProCleaner"
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Новая запись", callback_data="book_appointment")],
-        [InlineKeyboardButton("📅 Посмотреть расписание", callback_data="view_schedule")],
-        [InlineKeyboardButton("🏠 Главное меню", callback_data="back_to_main")]
+        [InlineKeyboardButton("🎮 Новая запись", callback_data="book")],
+        [InlineKeyboardButton("📅 Свободные слоты", callback_data="view_slots")],
+        [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
     ]
     
     await query.edit_message_text(
-        appointments_text,
+        bookings_text,
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
-async def services_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Информация об услугах"""
+async def show_services(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Услуги и цены"""
     query = update.callback_query
     await query.answer()
     
     services_text = """
-🧠 *УСЛУГИ И ЦЕНЫ*
+💎 *УСЛУГИ И ЦЕНЫ В ROBLOX 🪙*
 
-*1. 🧠 СТАНДАРТНАЯ ПРОМЫВКА*
-• Длительность: 60 минут
-• Цена: 1 500₽
-• Что входит:
-  ✓ Диагностика состояния
-  ✓ Базовая очистка
-  ✓ Рекомендации
-  ✓ Чай/кофе
+*1. 🧹 БАЗОВАЯ ЧИСТКА ЧАТА (500 🪙)*
+• Удаление спама и флуда
+• Чистка друзей-токсиков  
+• Настройка приватности
+• Базовая защита
 
-*2. 🌀 ГЛУБОКАЯ ОЧИСТКА*
-• Длительность: 90 минут
-• Цена: 2 500₽
-• Что входит:
-  ✓ Полный анализ мышления
-  ✓ Глубокая проработка
-  ✓ Индивидуальный подход
-  ✓ Поддержка 3 дня
+*2. 🌀 ОЧИСТКА ОТ НООБОВ (1200 🪙)*
+• Полное удаление нообского мышления
+• Установка про-логики
+• Апгрейд скиллов принятия решений
+• Защита от кринжа
 
-*3. ⚡ ЭКСПРЕСС-СЕССИЯ*
-• Длительность: 30 минут
-• Цена: 1 000₽
-• Что входит:
-  ✓ Быстрая помощь
-  ✓ Экстренные случаи
-  ✓ Фокус на проблеме
+*3. ⚡ ЭКСПРЕСС-ФИКС БАГОВ (300 🪙)*
+• Срочное исправление логических ошибок
+• Починка когнитивных функций
+• Быстрая помощь при лагах
+• Экстренная перезагрузка
 
-*4. 👑 VIP КОМПЛЕКС*
-• Длительность: 120 минут
-• Цена: 5 000₽
-• Что входит:
-  ✓ Персональный специалист
-  ✓ Расширенная диагностика
-  ✓ Годовой план развития
-  ✓ Поддержка 30 дней
-  ✓ Подарочный сертификат
+*4. 👑 VIP РАЗБЛОКИРОВКА (2500 🪙)*
+• Доступ к скрытым возможностям
+• Премиум настройки мозга
+• Эксклюзивные анимации
+• Личный помощник-бот
 
-*📞 Запись и консультация:*
-@brainwash_admin | +7 (XXX) XXX-XX-XX
+*5. 🎮 ПРОКАЧКА СКИЛЛОВ (1800 🪙)*
+• Повышение уровня реакции
+• Изучение продвинутых механик
+• Тренировка стратегического мышления
+• Гайды от топ-геймеров
+
+*6. 🔧 РЕМОНТ АВАТАРА (800 🪙)*
+• Починка сломанных эмоций
+• Настройка анимаций личности
+• Новые аксессуары для ума
+• Кастомизация поведения
+
+*🎯 БОНУС: При записи на 2+ услуги - скидка 15%!*
     """
     
     await query.edit_message_text(
         services_text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Записаться", callback_data="book_appointment")],
-            [InlineKeyboardButton("📅 Расписание", callback_data="view_schedule")],
-            [InlineKeyboardButton("◀️ Назад", callback_data="back_to_main")]
+            [InlineKeyboardButton("🎮 Записаться", callback_data="book")],
+            [InlineKeyboardButton("📅 Слоты", callback_data="view_slots")],
+            [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
         ]),
         parse_mode='Markdown'
     )
 
-async def about_clinic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """О клинике"""
+async def about_service(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """О сервисе"""
     query = update.callback_query
     await query.answer()
     
     about_text = """
-🏥 *О КЛИНИКЕ «BRAIN WASH»*
+🏢 *ROBLOX BRAIN WASH SERVICE*
 
-*Наша миссия:*
-Очистить ваш разум от ненужного хлама, негативных установок и ограничивающих убеждений!
+*Наша миссия:* 
+Делаем геймеров лучше, чище и умнее! 🧠✨
 
-*Преимущества:*
-✅ Лицензированные специалисты
-✅ Современное оборудование
-✅ Индивидуальный подход
-✅ Конфиденциальность
-✅ Гарантия результата
+*Основатели:*
+• **Доктор Нейрочист** - главный специалист по чистке
+• **Профессор Логикон** - эксперт по исправлению багов  
+• **Мастер Скиллз** - тренер по прокачке
+• **Аватар-Док** - специалист по ремонту аватаров
 
-*Специалисты:*
-• Д-р Мыслечисткин - 15 лет опыта
-• Проф. Прозрений - PhD в нейронауках
-• Мастер Чистосознания - восточные практики
+*Наши достижения:*
+✅ 10,000+ довольных геймеров
+✅ 99.7% успешных чисток
+✅ Средний рост скиллов: +47%
+✅ Лучший сервис 2024 по версии Roblox Times
 
-*Результаты:*
-92% клиентов отмечают улучшение мышления уже после первой процедуры!
+*Принципы работы:*
+1. 🤖 Только AI-технологии
+2. 🔒 Полная конфиденциальность  
+3. ⚡ Мгновенные результаты
+4. 🎮 Интеграция с Roblox API
 
-*Часы работы:*
-Пн-Пт: 9:00-21:00
-Сб: 10:00-18:00
-Вс: выходной
+*Отзывы геймеров:*
+"После чистки стал топом в BedWars!" - NoobMaster69
+"Наконец-то понимаю шутки в чате!" - ProGamer228
+"Мой аватар теперь не кринжовый!" - CoolAvatarGirl
+
+*Присоединяйся к комьюнити!* 🚀
     """
     
     await query.edit_message_text(
         about_text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("💰 Услуги", callback_data="services_info")],
-            [InlineKeyboardButton("🔄 Записаться", callback_data="book_appointment")],
-            [InlineKeyboardButton("◀️ Назад", callback_data="back_to_main")]
+            [InlineKeyboardButton("💎 Услуги", callback_data="services")],
+            [InlineKeyboardButton("🎮 Записаться", callback_data="book")],
+            [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
         ]),
         parse_mode='Markdown'
     )
 
-async def contacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_contacts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Контакты"""
     query = update.callback_query
     await query.answer()
     
     contacts_text = """
-☎️ *КОНТАКТЫ*
+📞 *КОНТАКТЫ И ПОДДЕРЖКА*
 
-*📍 Адрес:*
-г. Москва, ул. Мыслительная, д. 42
-Бизнес-центр «Прозрение», 3 этаж, кабинет 315
+*🎮 Основной сервер:*
+Roblox → Поиск → «Brain Clean HQ»
+Или прямая ссылка: roblox.com/games/brain-clean
 
-*🚇 Метро:*
-• «Прозрение» (выход №3)
-• «Осознанность» (10 минут пешком)
+*💬 Техподдержка:*
+• Telegram: @RobloxProCleaner
+• Discord: discord.gg/robloxclean
+• VK: vk.com/robloxbrainwash
+• Instagram: @roblox.clean.service
 
-*📞 Телефоны:*
-• Запись: +7 (XXX) XXX-XX-XX
-• Администратор: +7 (XXX) XXX-XX-XX
-• Экстренная связь: +7 (XXX) XXX-XX-XX
+*📧 Почта:*
+• Для записи: booking@robloxclean.com
+• Для жалоб: abuse@robloxclean.com  
+• Для сотрудничества: partners@robloxclean.com
 
-*📧 Email:*
-• Запись: appointment@brainwash.ru
-• Вопросы: info@brainwash.ru
-• Сотрудничество: partners@brainwash.ru
+*⏰ Часы работы сервиса:*
+Круглосуточно 24/7 🕛
+(Но записи только в рабочее время)
 
-*💬 Соцсети:*
-• Telegram: @brainwash_clinic
-• Instagram: @brainwash.moscow
-• VK: vk.com/brainwash
+*🚨 Экстренная помощь:*
+Если случился когнитивный краш или
+ментальный лаг - пиши @RobloxEmergency
 
-*🕐 Часы работы:*
-Пн-Пт: 9:00-21:00
-Сб: 10:00-18:00
-Вс: выходной
-
-*🚗 Парковка:*
-Бесплатная парковка на территории БЦ (2 часа)
+*💰 Партнерская программа:*
+Приведи друга - получи 200 🪙 на счет!
+Подробности: @RobloxPartnersBot
     """
     
     await query.edit_message_text(
         contacts_text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("📅 Записаться", callback_data="book_appointment")],
-            [InlineKeyboardButton("💰 Услуги", callback_data="services_info")],
-            [InlineKeyboardButton("◀️ Назад", callback_data="back_to_main")]
+            [InlineKeyboardButton("🎮 Записаться", callback_data="book")],
+            [InlineKeyboardButton("💎 Услуги", callback_data="services")],
+            [InlineKeyboardButton("🏠 В меню", callback_data="back_main")]
         ]),
         parse_mode='Markdown'
     )
 
-async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Вернуться в главное меню"""
+# ==================== АДМИН ПАНЕЛЬ ====================
+async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Панель администратора"""
     query = update.callback_query
     await query.answer()
     
+    user = query.from_user
+    if user.id not in ADMIN_IDS:
+        await query.edit_message_text("🚫 Ты не админ!")
+        return
+    
     await query.edit_message_text(
-        "🏠 *Главное меню*\n\n"
-        "*Выберите действие:* ⤵️",
-        reply_markup=get_main_menu(),
+        "👑 *ПАНЕЛЬ АДМИНИСТРАТОРА ROBLOX BRAIN WASH*\n\n"
+        "*Доступные команды:*",
+        reply_markup=get_admin_menu(),
         parse_mode='Markdown'
     )
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка текстовых сообщений"""
-    if 'waiting_for_phone' in context.user_data and context.user_data['waiting_for_phone']:
-        # Пользователь вводит телефон
-        phone = update.message.text
-        context.user_data['user_phone'] = phone
-        context.user_data['waiting_for_phone'] = False
+async def admin_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Статистика для админа"""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    if user.id not in ADMIN_IDS:
+        await query.edit_message_text("🚫 Нет доступа!")
+        return
+    
+    stats = get_stats()
+    
+    # Статистика по услугам
+    services_text = ""
+    for service_code, count in stats['services']:
+        service_name, price, _ = get_service_info(service_code)
+        short_name = service_name.split()[1]
+        services_text += f"• {short_name}: {count} записей\n"
+    
+    stats_text = f"""
+📊 *СТАТИСТИКА СЕРВИСА:*
+
+*Общая статистика:*
+• Всего слотов: {stats['total']}
+• Свободно: {stats['free']}
+• Забронировано: {stats['booked']}
+• Заполненность: {(stats['booked']/stats['total']*100):.1f}%
+
+*Популярность услуг:*
+{services_text}
+
+*💰 Оборот (если все оплачено):*
+• Базовая: 500 🪙 × {next((c for s,c in stats['services'] if s=='basic'), 0)} = {500 * next((c for s,c in stats['services'] if s=='basic'), 0)} 🪙
+• Глубокая: 1200 🪙 × {next((c for s,c in stats['services'] if s=='deep'), 0)} = {1200 * next((c for s,c in stats['services'] if s=='deep'), 0)} 🪙
+• VIP: 2500 🪙 × {next((c for s,c in stats['services'] if s=='vip'), 0)} = {2500 * next((c for s,c in stats['services'] if s=='vip'), 0)} 🪙
+
+*📈 ИТОГО: {sum(price * next((c for s,c in stats['services'] if s==code), 0) for code, (_, price, _) in get_service_info.__closure__[0].cell_contents.items() if any(s==code for s,_ in stats['services']))} 🪙*
+    """
+    
+    await query.edit_message_text(
+        stats_text,
+        reply_markup=get_admin_menu(),
+        parse_mode='Markdown'
+    )
+
+async def admin_all_bookings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Все записи для админа"""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    if user.id not in ADMIN_IDS:
+        await query.edit_message_text("🚫 Нет доступа!")
+        return
+    
+    bookings = get_all_bookings()
+    
+    if not bookings:
+        await query.edit_message_text(
+            "📭 *Нет активных записей*",
+            reply_markup=get_admin_menu()
+        )
+        return
+    
+    bookings_text = "📋 *ВСЕ АКТИВНЫЕ ЗАПИСИ:*\n\n"
+    
+    for i, (date_str, time_str, service_code, user_name, phone, created_at) in enumerate(bookings[:15], 1):
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+        service_name, price, _ = get_service_info(service_code)
+        short_name = service_name.split()[1]
         
-        await update.message.reply_text(
-            f"✅ Телефон сохранен: {phone}\n\n"
-            "Теперь подтвердите запись через меню.",
-            reply_markup=get_main_menu()
-        )
-    else:
-        await update.message.reply_text(
-            "Используйте меню для навигации! 📱",
-            reply_markup=get_main_menu()
-        )
+        bookings_text += f"*{i}. {user_name or 'Аноним'}*\n"
+        bookings_text += f"   📅 {date_obj.strftime('%d.%m')} в {time_str}\n"
+        bookings_text += f"   🎮 {short_name} ({price} 🪙)\n"
+        if phone:
+            bookings_text += f"   📱 {phone}\n"
+        bookings_text += f"   🕐 Запись: {created_at[:16]}\n\n"
+    
+    if len(bookings) > 15:
+        bookings_text += f"\n*... и еще {len(bookings) - 15} записей*"
+    
+    await query.edit_message_text(
+        bookings_text,
+        reply_markup=get_admin_menu(),
+        parse_mode='Markdown'
+    )
+
+async def admin_refresh(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обновить расписание"""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    if user.id not in ADMIN_IDS:
+        await query.edit_message_text("🚫 Нет доступа!")
+        return
+    
+    # Пересоздаем расписание
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    # Удаляем старые записи
+    cursor.execute("DELETE FROM appointments WHERE date >= date('now')")
+    
+    # Генерируем новые
+    generate_schedule(cursor)
+    
+    conn.commit()
+    conn.close()
+    
+    await query.edit_message_text(
+        "✅ *Расписание обновлено!*\n\n"
+        "Созданы новые слоты на неделю вперед.",
+        reply_markup=get_admin_menu()
+    )
+
+async def back_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """В главное меню"""
+    query = update.callback_query
+    await query.answer()
+    
+    user = query.from_user
+    await query.edit_message_text(
+        "🎮 *Главное меню Roblox Brain Wash*\n\n"
+        "*Выбери действие:* ⤵️",
+        reply_markup=get_main_menu(user.id),
+        parse_mode='Markdown'
+    )
 
 # ==================== ОСНОВНАЯ ФУНКЦИЯ ====================
 def main():
     """Запуск бота"""
-    logger.info("🚀 Запускаю бота...")
+    logger.info("🚀 Запускаю Roblox Brain Wash Bot...")
     
     # Инициализация БД
     init_database()
@@ -809,25 +916,33 @@ def main():
     # Регистрация команд
     app.add_handler(CommandHandler("start", start_command))
     
-    # Регистрация callback-обработчиков
-    app.add_handler(CallbackQueryHandler(view_schedule, pattern="^view_schedule$"))
+    # Обработчики для пользователей
+    app.add_handler(CallbackQueryHandler(view_slots, pattern="^view_slots$"))
     app.add_handler(CallbackQueryHandler(select_date, pattern="^date_"))
     app.add_handler(CallbackQueryHandler(select_time, pattern="^time_"))
-    app.add_handler(CallbackQueryHandler(confirm_booking, pattern="^(confirm_|need_call|yes_phone|no_phone)"))
-    app.add_handler(CallbackQueryHandler(my_appointments, pattern="^my_appointments$"))
-    app.add_handler(CallbackQueryHandler(services_info, pattern="^services_info$"))
-    app.add_handler(CallbackQueryHandler(about_clinic, pattern="^about_clinic$"))
-    app.add_handler(CallbackQueryHandler(contacts, pattern="^contacts$"))
-    app.add_handler(CallbackQueryHandler(back_to_main, pattern="^back_to_main$"))
+    app.add_handler(CallbackQueryHandler(confirm_booking, pattern="^confirm_"))
+    app.add_handler(CallbackQueryHandler(my_bookings, pattern="^my_bookings$"))
+    app.add_handler(CallbackQueryHandler(show_services, pattern="^services$"))
+    app.add_handler(CallbackQueryHandler(about_service, pattern="^about$"))
+    app.add_handler(CallbackQueryHandler(show_contacts, pattern="^contacts$"))
     
-    # Для команды "Записаться" - начинаем с выбора даты
-    app.add_handler(CallbackQueryHandler(view_schedule, pattern="^book_appointment$"))
+    # Для кнопки "Записаться" - начинаем с выбора даты
+    app.add_handler(CallbackQueryHandler(view_slots, pattern="^book$"))
     
-    # Обработчик текстовых сообщений - ИСПРАВЛЕННАЯ СТРОКА!
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    # Админ-обработчики
+    app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
+    app.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
+    app.add_handler(CallbackQueryHandler(admin_all_bookings, pattern="^admin_all$"))
+    app.add_handler(CallbackQueryHandler(admin_refresh, pattern="^admin_refresh$"))
     
-    logger.info("✅ Бот запущен и готов к работе!")
-    logger.info("📱 Перейдите в Telegram и напишите /start")
+    # Навигация
+    app.add_handler(CallbackQueryHandler(back_to_main, pattern="^back_main$"))
+    
+    # Обработчик текстовых сообщений
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, back_to_main))
+    
+    logger.info("✅ Roblox бот запущен и готов!")
+    logger.info("🎮 Напиши /start в Telegram!")
     
     # Запуск бота
     app.run_polling()
